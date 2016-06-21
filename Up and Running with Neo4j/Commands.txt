@@ -1,0 +1,245 @@
+
+===================== Using Neo4j - Edges =====================
+
+# Display 
+MATCH (n) RETURN n LIMIT 100
+
+# Nodes Relationship ( Un Directed )
+MATCH (a) -- (b) RETURN a,b;
+
+# Nodes Relationship ( Directed )
+MATCH (a) --> (b) RETURN a,b;
+MATCH (a) --> () RETURN a;
+MATCH (a) --> () RETURN a.name;
+
+# Relationship ( Edges ) ( Put an 'r' in between 2 dash )
+MATCH (a) -[r]-> (b) RETURN a,b;
+
+
+===================== Using Neo4j - Relationships =====================
+
+MATCH (a) - [r] -> () RETURN r;
+MATCH (a) - [r] -> () RETURN a.name , type(r);
+
+MATCH (a) OPTIONAL MATCH (a)-[r]->() RETURN a.name, type(r);
+
+MATCH (a) - [:ACTED_IN] -> (m) RETURN a.name, type(r);
+MATCH (a) - [r:ACTED_IN] -> (m) RETURN a.name,r.roles,type(r);
+
+
+
+===================== Using Neo4j - Advanced Cypher =====================
+
+MATCH (a)-->(b)-->(c) RETURN a, b, c;
+MATCH (a)-->(b)-->(c) RETURN a.name , b.name, c.title LIMIT 100;
+MATCH (a)-->(b)<--(c) RETURN a, b, c LIMIT 100;
+
+# Same results from next 4 queries : 
+MATCH (a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN a.name, m.title, d.name;
+MATCH (a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN a.name AS Actor, m.title as Movie, d.name as Director;
+MATCH (a) - [:ACTED_IN] -> (m), (m) <- [:DIRECTED] - (d) RETURN a.name, m.title, d.name;
+MATCH (a) - [:ACTED_IN] -> (m), (d) - [:DIRECTED] -> (m) RETURN a.name, m.title, d.name;
+MATCH p=(a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN p;
+
+MATCH p=(a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN nodes(p);
+MATCH p=(a) --> (m) <-- (d) RETURN rels(p);
+
+MATCH p1=(a) - [:ACTED_IN] -> (m), 
+	p2=(d) - [:DIRECTED] -> (m) RETURN p1, p2;
+
+
+###### Aggregations : 
+
+MATCH (a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN a.name, d.name, count(*);
+MATCH (a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN a.name, d.name, count(m);
+
+# Return csv for the "collect" function
+MATCH (a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN a.name, d.name, collect(m.title);
+
+# Aggregate functions available : 
+count, min, max, avg, sum, collect
+
+# Sort and limit
+MATCH (a) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN a.name, d.name, count(*) AS Count ORDER BY count DESC LIMIT 5;
+
+# Director who directed and acted in a movie
+
+MATCH (d) - [:ACTED_IN] -> (m) <- [:DIRECTED] - (d) RETURN d.name, m.title;
+
+
+===================== Using Neo4j - Ninja =====================
+
+# Where clause
+
+MATCH (n) WHERE n.name = "Tom Hanks" RETURN n;
+MATCH (tom:Person) WHERE tom.name = "Tom Hanks" RETURN tom;
+
+# Same queries
+MATCH (tom:Person)-[:ACTED_IN]->(movie:Movie) WHERE tom.name ="Tom Hanks" RETURN movie.title;
+MATCH (tom:Person {name: "Tom Hanks"})-[:ACTED_IN]->(movie:Movie) RETURN movie.title;
+
+# Director who worked with tom hanks
+MATCH (tom:Person {name: "Tom Hanks"})-[:ACTED_IN]->(movie),
+(director) -[:DIRECTED] -> (movie) RETURN director.name;
+
+MATCH (tom:Person)-[:ACTED_IN]->()<-[:DIRECTED]-(director) WHERE tom.name ="Tom Hanks" RETURN DISTINCT director.name;
+
+# Creating Index
+
+CREATE INDEX ON :LABEL(Property)
+CREATE INDEX ON :Person(name)
+CREATE INDEX ON :Movie(title)
+
+# 
+MATCH (tom:Person {name:"Tom Hanks"})-[:ACTED_IN]->(movie),
+	(kevin:Person {name:"Kevin Bacon"})-[:ACTED_IN]->(movie)
+	RETURN DISTINCT movie.title;
+
+# Conditions: 
+WHERE movie.released < 1992
+WHERE "Neo" IN (r.roles)
+WHERE ANY(x IN r.roles WHERE x = "Neo")
+
+# Actors who worked with Tom and are older than him
+MATCH (tom:Person {name:"Tom Hanks"})- [:ACTED_IN] -> 
+	(movie) <- [:ACTED_IN]-(a:Person)
+	WHERE a.born < tom.born
+	RETURN DISTINCT a.name;
+
+# Actors who worked with Gene Hackman
+MATCH (gene:Person {name:"Gene Hackman"}) -[:ACTED_IN]-> (movie) <- [:ACTED_IN]-(actor)
+	RETURN DISTINCT actor.name;
+
+MATCH (gene:Person {name:"Gene Hackman"}) -[:ACTED_IN]-> (movie) <- [:ACTED_IN]->(director)
+	WHERE (director)-[:DIRECTED]->()
+	RETURN DISCTINCT director.name;
+
+# Actors who worked with Keanu, but not when he was also working with Hugo
+
+MATCH (keanu:Person {name:"Keanu Reeves"}) -[:ACTED_IN]-> (movie) <- [:ACTED_IN]-(actor), 
+	(hugo:Person {name:"Hugo Weaving"})
+	WHERE NOT (hugo)-[:ACTED_IN]->(movie)
+	RETURN DISTINCT actor.name;
+
+# Recommed 3 actors that Keanu Reeves should work with ( but hasn't)
+
+MATCH (keanu:Person) - [:ACTED_IN] -> () <- [:ACTED_IN] - (c),
+	(c)-[:ACTED_IN]-> () <- [:ACTED_IN] - (coc)
+	WHERE keanu.name = "Keanu Reeves"
+	AND NOT ((keanu)-[:ACTED_IN]->() <- [:ACTED_IN] - (coc))
+	AND coc <> keanu
+	RETURN coc.name, count(coc)
+	ORDER BY  count(coc) DESC
+	LIMIT 3;
+
+
+
+
+
+===================== Using Neo4j - Creating Entities =====================
+
+# Create a new node
+CREATE (m:Movies {title: "Mystic River", released: 1993});
+
+# Adding Property
+MATCH (movie:Movie {title:"Mystic River"})
+	SET movie.tagline = "Here it goes"
+	RETURN movie;
+
+SET movie.released = 2003
+
+# Create relationship 
+MATCH (movie:Movie {title:"Mystic Rivers"}),
+	(kevin:Person {name:"Kevin Bacon"})
+	MERGE (kevin)-[r:ACTED_IN]->(movie)
+	ON CREATE SET r.roles=["Sean"];
+
+# Change Kevin Bacons role in Mystic Rivers from "Sean" to "Sean Devine"
+
+MATCH (kevin:Person {name:"Kevin Bacon"}) - [r:ACTED_IN] -> 
+	(movie:Movie {title:"Mystic River"})
+	SET r.roles = ["Sean Devine"]
+	RETURN r.roles;
+
+	SET r.roles = [n in r.roles WHERE n <> "Sean"] + "Sean Devine"
+	RETURN r.roles;
+
+# Add Clint as director of Mystic river
+
+MATCH (movie:Movie {title:"Mystic"}),
+	(clint:Person {name:"Clint"})
+	MERGE (clint)-[:DIRECTED]->(movie);
+
+
+
+
+
+===================== Using Neo4j - Deleting Stuff =====================
+
+# List all character roles in Matrix
+
+MATCH (matrix:Movie {title:"The Matrix"}) <- [r:ACTED_IN]-()
+	RETURN r.roles;
+
+# You cannot delete a node before you delete a relationship
+
+MATCH (emil:Person {name:"Emil Eifrem"})-[r]-()
+	DELETE r;
+
+MATCH (emil:Person {name:"Emil Eifrem"})
+	DELETE emil;
+
+# Do it at one go
+MATCH (emil:Person {name:"Emil Eifrem"})
+	OPTIONAL MATCH (emil)-[r]-()
+	DELETE r,emil;
+
+
+# Add knows relationship b/w all actors who were in the same movie
+MATCH (a:Person)-[:ACTED_IN]->() <- [:ACTED_IN]-(b:Person)
+	CREATE UNIQUE (a) - [:KNOWS] - (b);
+
+
+# Match or Create is Merge ( Guarantee unique lookup and creation )
+MERGE (p:Person {name:"Clint Eastwood"})
+	RETURN p;
+
+MERGE (p:Person {name:"Clint Eastwood"})
+	ON CREATE SET p.created = timestamp()
+	ON MATCH SET p.accessed = coalesce(p.accessed,0)+1
+	RETURN p;
+
+# Matching multiple relationships
+
+MATCH (a) -[:ACTED_IN|:DIRECTED]->()<-[:ACTED_IN|:DIRECTED]-(b)
+	CREATE UNIQUE (a)-[:KNOWS]-(b);
+
+# Friends of Friends
+MATCH (keanu:Person {name:"Keanu Reeves"}) - [:KNOWS*2]-(fof)
+	RETURN DISTINCT fof.name;
+
+# Returns fof of Keaunu Reeves who are not immediate friends
+MATCH (keanu:Person {name:"Keanu Reeves"})-[:KNOWS*2]-(fof)
+	WHERE keanu <> fof AND NOT (keanu) -[:KNOWS]-(fof)
+	RETURN DISTINCT fof.name;
+
+# Path Lengths
+MATCH p=shortestPath(charlize:Person)-[:KNOWS*]-(bacon:Person)
+	WHERE charlize.name = "Charlize Theron"
+	AND bacon.name = "Kevin Bacon"
+	RETURN length(p);
+
+# Return the names of people joining Charlize to Kevin
+MATCH p=shortestPath((charlize:Person)-[:KNOWS]-(bacon:Person))
+	WHERE charlize.name="Charlize Theron"
+	AND bacon.name="Kevin Bacon"
+	RETURN [n in nodes(p) | n.name] AS names;
+
+
+===================== Using Neo4j - Next Steps =====================
+
+
+
+
+
+
