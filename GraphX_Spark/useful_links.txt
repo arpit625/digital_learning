@@ -1,0 +1,12 @@
+https://www.google.co.in/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=graphx%20spark%20tutorial
+
+http://ampcamp.berkeley.edu/big-data-mini-course/graph-analytics-with-graphx.html
+
+https://spark.apache.org/docs/0.9.1/graphx-programming-guide.html
+
+http://stanford.edu/~rezab/nips2014workshop/slides/ankur.pdf
+
+https://www.mapr.com/blog/how-get-started-using-apache-spark-graphx-scala
+
+http://www.sparktutorials.net/analyzing-flight-data:-a-gentle-introduction-to-graphx-in-spark
+
